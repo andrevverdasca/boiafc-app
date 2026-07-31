@@ -12,7 +12,7 @@ create or replace function claim_player(p_player_id uuid, p_pin text)
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_hash text;

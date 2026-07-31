@@ -230,7 +230,7 @@ function Claim({ players, onDone }) {
     setError('');
     if (pin.length < 4) { setError('O PIN tem de ter pelo menos 4 numeros.'); return; }
     const { error } = await supabase.rpc('claim_player', { p_player_id: picked.id, p_pin: pin });
-    if (error) { setError('PIN errado.'); return; }
+    if (error) { setError(error.message === 'pin invalido' ? 'PIN errado.' : error.message); return; }
     onDone();
   }
 
