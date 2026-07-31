@@ -7,6 +7,10 @@ const RED = '#e8443f', GOLD = '#f0b429', GREEN = '#7fd6a4';
 const FUT5_FIELDS = ['CES', 'Frei Aleixo'];
 const FIELDS = ['EveryBoia', 'SLE', 'Complexo', 'CES', 'Frei Aleixo'];
 const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const KIT = {
+  preto: { label: 'Preto', hex: '#1a1a1a' },
+  laranja: { label: 'Laranja', hex: '#f0761f' }
+};
 const STATUS = {
   vou: { label: 'Vou', fg: GREEN, bg: 'rgba(63,122,90,.22)' },
   talvez: { label: 'Talvez', fg: GOLD, bg: 'rgba(240,180,41,.18)' },
@@ -18,6 +22,16 @@ const label = { font: '700 11px/1 Archivo, sans-serif', letterSpacing: '.14em', 
 const input = { width: '100%', padding: 14, borderRadius: 14, background: '#0d1119', border: '1px solid rgba(244,241,234,.1)', color: '#f4f1ea', font: '600 15px Archivo, sans-serif', outline: 'none', boxSizing: 'border-box' };
 const btn = (on) => ({ padding: '12px 16px', borderRadius: 14, background: on ? RED : '#0d1119', color: on ? '#fff' : 'rgba(244,241,234,.55)', font: '700 12px Archivo, sans-serif', border: 'none', cursor: 'pointer' });
 
+function KitBadge({ color }) {
+  const k = KIT[color];
+  if (!k) return null;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      <span style={{ width: 10, height: 10, borderRadius: '50%', background: k.hex, border: '1px solid rgba(244,241,234,.3)', display: 'inline-block' }} />
+      {k.label}
+    </span>
+  );
+}
 function initials(name) {
   const p = String(name || '?').trim().split(' ');
   return ((p[0][0] || '') + (p[1] ? p[1][0] : (p[0][1] || ''))).toUpperCase();
@@ -141,7 +155,10 @@ export default function Page() {
           <div style={{ ...card, background: 'linear-gradient(150deg,' + RED + ',#6d1218)' }}>
             <div style={{ ...label, color: 'rgba(255,255,255,.8)' }}>Proximo jogo</div>
             <div style={{ font: '400 40px/1 Anton, sans-serif', textTransform: 'uppercase', margin: '10px 0' }}>{next.opponent}</div>
-            <div style={{ font: '600 13px Archivo' }}>{fmtDate(next.kickoff)} · {next.field} · {next.format}</div>
+            <div style={{ font: '600 13px Archivo', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span>{fmtDate(next.kickoff)} · {next.field} · {next.format}</span>
+              {next.kit_color && <KitBadge color={next.kit_color} />}
+            </div>
           </div>
           <div style={card}>
             <div style={label}>Vais?</div>
@@ -182,7 +199,10 @@ export default function Page() {
           {upcoming.map(g => (
             <div key={g.id} onClick={() => isAdmin && setSheet({ kind: 'editGame', id: g.id })} style={{ ...card, cursor: isAdmin ? 'pointer' : 'default' }}>
               <div style={{ font: '700 15px Archivo' }}>{g.opponent}</div>
-              <div style={{ font: '400 11px Archivo', color: 'rgba(244,241,234,.4)', marginTop: 4 }}>{fmtDate(g.kickoff)} · {g.field} · {g.format}</div>
+              <div style={{ font: '400 11px Archivo', color: 'rgba(244,241,234,.4)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span>{fmtDate(g.kickoff)} · {g.field} · {g.format}</span>
+                {g.kit_color && <KitBadge color={g.kit_color} />}
+              </div>
               <div style={{ font: '600 11px Archivo', color: GREEN, marginTop: 6 }}>
                 {attendance.filter(a => a.game_id === g.id && a.status === 'vou').length} confirmados
               </div>
@@ -318,10 +338,11 @@ function NewGame({ game, onDone }) {
   const [date, setDate] = useState(game ? toDateInput(game.kickoff) : '');
   const [time, setTime] = useState(game ? toTimeInput(game.kickoff) : '20:30');
   const [field, setField] = useState(game ? game.field : 'EveryBoia');
+  const [kitColor, setKitColor] = useState(game ? (game.kit_color || 'preto') : 'preto');
   const format = FUT5_FIELDS.indexOf(field) >= 0 ? 'Futsal 5' : 'Futebol 7';
   async function save() {
     if (!opp || !date) return;
-    const payload = { opponent: opp, kickoff: new Date(date + 'T' + time).toISOString(), field, format };
+    const payload = { opponent: opp, kickoff: new Date(date + 'T' + time).toISOString(), field, format, kit_color: kitColor };
     if (game) await supabase.from('games').update(payload).eq('id', game.id);
     else await supabase.from('games').insert(payload);
     onDone();
@@ -343,6 +364,17 @@ function NewGame({ game, onDone }) {
         {FIELDS.map(f => <option key={f} value={f}>{f}</option>)}
       </select>
       <div style={{ font: '400 12px Archivo', color: 'rgba(244,241,234,.4)' }}>Formato automatico: {format}</div>
+      <div>
+        <div style={{ ...label, marginBottom: 8 }}>Cor do equipamento</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {Object.keys(KIT).map(k => (
+            <button key={k} onClick={() => setKitColor(k)} style={{ ...btn(kitColor === k), flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: KIT[k].hex, border: '1px solid rgba(244,241,234,.3)', display: 'inline-block' }} />
+              {KIT[k].label}
+            </button>
+          ))}
+        </div>
+      </div>
       <button onClick={save} style={btn(true)}>{game ? 'Guardar alteracoes' : 'Guardar jogo'}</button>
       {game && <button onClick={remove} style={{ ...btn(false), color: '#ff7b74' }}>Apagar jogo</button>}
     </div>
@@ -392,7 +424,10 @@ function GameSheet({ game, players, events, isAdmin, onAdd, onRemove, onSaveScor
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ font: '400 26px Anton', textTransform: 'uppercase' }}>{game.opponent}</div>
-      <div style={{ font: '400 12px Archivo', color: 'rgba(244,241,234,.45)' }}>{fmtDate(game.kickoff)} · {game.field} · {game.format}</div>
+      <div style={{ font: '400 12px Archivo', color: 'rgba(244,241,234,.45)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span>{fmtDate(game.kickoff)} · {game.field} · {game.format}</span>
+        {game.kit_color && <KitBadge color={game.kit_color} />}
+      </div>
       {isAdmin && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <input style={{ ...input, width: 70 }} value={gf} onChange={e => setGf(e.target.value)} placeholder="nos" />

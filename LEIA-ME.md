@@ -13,7 +13,7 @@ Stack: Next.js (Vercel, gratis) + Supabase (base de dados, login, fotos — grat
 
 ## A tua lista (por ordem)
 1. **Supabase**: cria conta em supabase.com > New project (regiao Frankfurt/London). Guarda a password da base de dados.
-2. No painel > **SQL Editor**: cola e corre `supabase/01_schema.sql`, depois `02_policies.sql`, depois `03_seed.sql`, depois `04_pin_login.sql`. (Se ja tinhas corrido uma versao anterior de `04_pin_login.sql` que pedia PIN, corre tambem `05_remove_pin.sql` a seguir.)
+2. No painel > **SQL Editor**: cola e corre `supabase/01_schema.sql`, depois `02_policies.sql`, depois `03_seed.sql`, depois `04_pin_login.sql`, depois `06_kit_color.sql`. (Se ja tinhas corrido uma versao anterior de `04_pin_login.sql` que pedia PIN, corre tambem `05_remove_pin.sql` a seguir ao `04`.)
 3. Em `03_seed.sql` confirma a linha que te torna capitao (`update players set is_admin = true where name = 'Jose Pedro';`) — troca pelo teu nome se for outro.
 3b. Painel > **Authentication > Sign In / Providers**: ativa **Anonymous Sign-Ins** (tem de estar ligado para a app funcionar).
 4. Painel > **Project Settings > API**: copia `Project URL`, `anon key` e `service_role key`.
