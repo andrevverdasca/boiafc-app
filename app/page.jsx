@@ -221,9 +221,12 @@ function Avatar({ player, size = 32 }) {
 function Login() {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
   async function go() {
-    await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
-    setSent(true);
+    setError('');
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
+    if (error) setError(error.message);
+    else setSent(true);
   }
   return (
     <div style={{ maxWidth: 380, margin: '0 auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -231,6 +234,7 @@ function Login() {
       <div style={{ font: '400 13px/1.5 Archivo', color: 'rgba(244,241,234,.5)' }}>Poe o teu email e recebes um link de entrada. Sem passwords.</div>
       <input style={input} value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" />
       <button onClick={go} style={btn(true)}>{sent ? 'Link enviado — ve o email' : 'Entrar'}</button>
+      {error && <div style={{ font: '600 12px Archivo', color: '#ff7b74' }}>{error}</div>}
     </div>
   );
 }
