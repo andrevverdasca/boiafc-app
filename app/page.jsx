@@ -41,7 +41,10 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setSession(data.session);
+      else supabase.auth.signInAnonymously().then(({ data: d2 }) => setSession(d2.session));
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -110,9 +113,8 @@ export default function Page() {
     loadAll();
   }
 
-  if (!session) return <Login />;
-  if (loading) return <div style={{ padding: 40 }}>A carregar…</div>;
-  if (!me) return <Claim players={players} session={session} onDone={loadAll} />;
+  if (!session || loading) return <div style={{ padding: 40 }}>A carregar…</div>;
+  if (!me) return <Claim players={players} onDone={loadAll} />;
 
   return (
     <div style={{ maxWidth: 460, margin: '0 auto', paddingBottom: 96 }}>
@@ -218,39 +220,44 @@ function Avatar({ player, size = 32 }) {
   return <div style={{ ...st, background: '#2f6f8f', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '700 11px Archivo' }}>{initials(player && player.name)}</div>;
 }
 
-function Login() {
-  const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
+function Claim({ players, onDone }) {
+  const [picked, setPicked] = useState(null);
+  const [pin, setPin] = useState('');
   const [error, setError] = useState('');
-  async function go() {
-    setError('');
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
-    if (error) setError(error.message);
-    else setSent(true);
-  }
-  return (
-    <div style={{ maxWidth: 380, margin: '0 auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ font: '400 34px/1 Anton', textTransform: 'uppercase' }}>Boia FC</div>
-      <div style={{ font: '400 13px/1.5 Archivo', color: 'rgba(244,241,234,.5)' }}>Poe o teu email e recebes um link de entrada. Sem passwords.</div>
-      <input style={input} value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" />
-      <button onClick={go} style={btn(true)}>{sent ? 'Link enviado — ve o email' : 'Entrar'}</button>
-      {error && <div style={{ font: '600 12px Archivo', color: '#ff7b74' }}>{error}</div>}
-    </div>
-  );
-}
+  const sorted = players.slice().sort((a, b) => a.name.localeCompare(b.name));
 
-function Claim({ players, session, onDone }) {
-  const free = players.filter(p => !p.auth_user_id);
-  async function claim(id) {
-    await supabase.from('players').update({ auth_user_id: session.user.id }).eq('id', id);
+  async function submit() {
+    setError('');
+    if (pin.length < 4) { setError('O PIN tem de ter pelo menos 4 numeros.'); return; }
+    const { error } = await supabase.rpc('claim_player', { p_player_id: picked.id, p_pin: pin });
+    if (error) { setError('PIN errado.'); return; }
     onDone();
   }
+
+  if (picked) {
+    return (
+      <div style={{ maxWidth: 380, margin: '0 auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ font: '400 34px/1 Anton', textTransform: 'uppercase' }}>Boia FC</div>
+        <div style={{ font: '400 13px/1.5 Archivo', color: 'rgba(244,241,234,.5)' }}>
+          {picked.pin_hash ? `Introduz o PIN de ${picked.name}.` : `Define um PIN para ${picked.name} (fica associado a ti para sempre).`}
+        </div>
+        <input style={input} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} inputMode="numeric" maxLength={6} placeholder="PIN" />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { setPicked(null); setPin(''); setError(''); }} style={btn(false)}>Voltar</button>
+          <button onClick={submit} style={btn(true)}>{picked.pin_hash ? 'Entrar' : 'Criar PIN'}</button>
+        </div>
+        {error && <div style={{ font: '600 12px Archivo', color: '#ff7b74' }}>{error}</div>}
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: 420, margin: '0 auto', padding: 24 }}>
+      <div style={{ font: '400 34px/1 Anton', textTransform: 'uppercase', marginBottom: 12 }}>Boia FC</div>
       <div style={{ ...label, marginBottom: 12 }}>Quem es tu?</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {free.map(p => (
-          <button key={p.id} onClick={() => claim(p.id)} style={{ ...btn(false), textAlign: 'left' }}>{p.name} · {p.handle}</button>
+        {sorted.map(p => (
+          <button key={p.id} onClick={() => setPicked(p)} style={{ ...btn(false), textAlign: 'left' }}>{p.name} · {p.handle}</button>
         ))}
       </div>
     </div>

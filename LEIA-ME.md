@@ -7,14 +7,15 @@ Stack: Next.js (Vercel, gratis) + Supabase (base de dados, login, fotos — grat
 - `supabase/01_schema.sql` — tabelas: players, games, game_guests, attendance, events, notices, notice_targets, push_subscriptions + vista `player_stats`.
 - `supabase/02_policies.sql` — permissoes: todos leem, cada um responde pela sua presenca, o capitao gere jogos/golos/jogadores/avisos; bucket `avatars` para fotos.
 - `supabase/03_seed.sql` — os 23 jogadores do plantel com os instagrams, 2 jogos de exemplo.
-- `app/page.jsx` — a app: login por email, confirmar presenca, calendario, historico, registo de golos/assistencias, rankings, plantel + emprestados, fotos de perfil, avisos (a todos ou individuais).
+- `app/page.jsx` — a app: escolhe o teu nome da lista e defines um PIN (sem email, sem passwords online), confirmar presenca, calendario, historico, registo de golos/assistencias, rankings, plantel + emprestados, fotos de perfil, avisos (a todos ou individuais).
 - `app/api/push/route.js` + `lib/push.js` + `public/sw.js` — notificacoes push.
 - `public/manifest.json` — instalacao no ecra inicial.
 
 ## A tua lista (por ordem)
 1. **Supabase**: cria conta em supabase.com > New project (regiao Frankfurt/London). Guarda a password da base de dados.
-2. No painel > **SQL Editor**: cola e corre `supabase/01_schema.sql`, depois `02_policies.sql`, depois `03_seed.sql`.
+2. No painel > **SQL Editor**: cola e corre `supabase/01_schema.sql`, depois `02_policies.sql`, depois `03_seed.sql`, depois `04_pin_login.sql`.
 3. Em `03_seed.sql` confirma a linha que te torna capitao (`update players set is_admin = true where name = 'Jose Pedro';`) — troca pelo teu nome se for outro.
+3b. Painel > **Authentication > Sign In / Providers**: ativa **Anonymous Sign-Ins** (tem de estar ligado para a app funcionar).
 4. Painel > **Project Settings > API**: copia `Project URL`, `anon key` e `service_role key`.
 5. **GitHub**: cria repositorio e mete lá esta pasta `boiafc-app`.
 6. **Vercel**: cria conta (login com GitHub) > Add New Project > escolhe o repo.
@@ -24,7 +25,7 @@ Stack: Next.js (Vercel, gratis) + Supabase (base de dados, login, fotos — grat
 8. As chaves de push geras com: `npx web-push generate-vapid-keys` (uma vez, no teu computador).
 9. Mete dois ficheiros PNG em `public/`: `icon-192.png` e `icon-512.png` (o emblema do clube, quadrado).
 10. Deploy. Ficas com um link tipo `boiafc.vercel.app` — manda ao grupo.
-11. Cada jogador: abre o link, poe o email, recebe o link de entrada e escolhe o seu nome da lista (fica associado a ele para sempre).
+11. Cada jogador: abre o link, escolhe o seu nome da lista e define um PIN (fica associado a ele para sempre). Nas vezes seguintes, escolhe o nome outra vez e mete o mesmo PIN.
 12. No iPhone: Safari > Partilhar > **Adicionar ao ecra principal** (obrigatorio para as notificacoes funcionarem, iOS 16.4+). No Android o Chrome oferece 'Instalar app'.
 13. Dentro da app, em Avisos, cada um toca em **Ligar notificacoes neste telefone** uma vez.
 
