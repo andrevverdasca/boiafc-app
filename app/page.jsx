@@ -51,7 +51,7 @@ export default function Page() {
 
   async function loadAll() {
     const [p, g, gg, a, e, n] = await Promise.all([
-      supabase.from('players').select('*').order('number'),
+      supabase.from('players').select('id,name,handle,number,photo_url,is_guest,is_admin,auth_user_id,created_at').order('number'),
       supabase.from('games').select('*').order('kickoff'),
       supabase.from('game_guests').select('*'),
       supabase.from('attendance').select('*'),
@@ -351,7 +351,7 @@ function NewPlayer({ games, onDone }) {
   const [gameId, setGameId] = useState(games[0] ? games[0].id : '');
   async function save() {
     if (!name) return;
-    const { data } = await supabase.from('players').insert({ name, handle, number: parseInt(number, 10) || null, is_guest: guest }).select().single();
+    const { data } = await supabase.from('players').insert({ name, handle, number: parseInt(number, 10) || null, is_guest: guest }).select('id,name,handle,number,photo_url,is_guest,is_admin,auth_user_id,created_at').single();
     if (guest && data && gameId) await supabase.from('game_guests').insert({ game_id: gameId, player_id: data.id });
     onDone();
   }
