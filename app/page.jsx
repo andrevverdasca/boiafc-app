@@ -26,6 +26,14 @@ function fmtDate(iso) {
   const d = new Date(iso);
   return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' · ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
 }
+function toDateInput(iso) {
+  const d = new Date(iso);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function toTimeInput(iso) {
+  const d = new Date(iso);
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
 
 export default function Page() {
   const [session, setSession] = useState(null);
@@ -164,7 +172,7 @@ export default function Page() {
             {isAdmin && <button onClick={() => setSheet({ kind: 'newGame' })} style={btn(true)}>+ Marcar jogo</button>}
           </div>
           {upcoming.map(g => (
-            <div key={g.id} style={card}>
+            <div key={g.id} onClick={() => isAdmin && setSheet({ kind: 'editGame', id: g.id })} style={{ ...card, cursor: isAdmin ? 'pointer' : 'default' }}>
               <div style={{ font: '700 15px Archivo' }}>{g.opponent}</div>
               <div style={{ font: '400 11px Archivo', color: 'rgba(244,241,234,.4)', marginTop: 4 }}>{fmtDate(g.kickoff)} · {g.field} · {g.format}</div>
               <div style={{ font: '600 11px Archivo', color: GREEN, marginTop: 6 }}>
@@ -205,6 +213,7 @@ export default function Page() {
         <Sheet onClose={() => setSheet(null)}>
           {sheet.kind === 'notices' && <Notices notices={notices} players={players} isAdmin={isAdmin} me={me} onSend={sendNotice} />}
           {sheet.kind === 'newGame' && <NewGame onDone={() => { setSheet(null); loadAll(); }} />}
+          {sheet.kind === 'editGame' && <NewGame game={games.find(g => g.id === sheet.id)} onDone={() => { setSheet(null); loadAll(); }} />}
           {sheet.kind === 'newPlayer' && <NewPlayer games={games} onDone={() => { setSheet(null); loadAll(); }} />}
           {sheet.kind === 'game' && <GameSheet game={games.find(g => g.id === sheet.id)} players={players} events={events} isAdmin={isAdmin} onAdd={addEvent} onRemove={removeEvent} onSaveScore={loadAll} />}
           {sheet.kind === 'player' && <PlayerSheet player={players.find(p => p.id === sheet.id)} stats={statsOf(sheet.id)} games={games} guests={guests} isAdmin={isAdmin} onChanged={loadAll} onMessage={(t,b,ids) => sendNotice(t,b,ids)} />}
@@ -296,20 +305,27 @@ function Notices({ notices, players, isAdmin, me, onSend }) {
   );
 }
 
-function NewGame({ onDone }) {
-  const [opp, setOpp] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('20:30');
-  const [field, setField] = useState('EveryBoia');
+function NewGame({ game, onDone }) {
+  const [opp, setOpp] = useState(game ? game.opponent : '');
+  const [date, setDate] = useState(game ? toDateInput(game.kickoff) : '');
+  const [time, setTime] = useState(game ? toTimeInput(game.kickoff) : '20:30');
+  const [field, setField] = useState(game ? game.field : 'EveryBoia');
   const format = FUT5_FIELDS.indexOf(field) >= 0 ? 'Futsal 5' : 'Futebol 7';
   async function save() {
     if (!opp || !date) return;
-    await supabase.from('games').insert({ opponent: opp, kickoff: new Date(date + 'T' + time).toISOString(), field, format });
+    const payload = { opponent: opp, kickoff: new Date(date + 'T' + time).toISOString(), field, format };
+    if (game) await supabase.from('games').update(payload).eq('id', game.id);
+    else await supabase.from('games').insert(payload);
+    onDone();
+  }
+  async function remove() {
+    if (!window.confirm('Apagar este jogo?')) return;
+    await supabase.from('games').delete().eq('id', game.id);
     onDone();
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ font: '400 26px Anton', textTransform: 'uppercase' }}>Marcar jogo</div>
+      <div style={{ font: '400 26px Anton', textTransform: 'uppercase' }}>{game ? 'Editar jogo' : 'Marcar jogo'}</div>
       <input style={input} value={opp} onChange={e => setOpp(e.target.value)} placeholder="Adversario" />
       <div style={{ display: 'flex', gap: 8 }}>
         <input style={input} type="date" value={date} onChange={e => setDate(e.target.value)} />
@@ -319,7 +335,8 @@ function NewGame({ onDone }) {
         {FIELDS.map(f => <option key={f} value={f}>{f}</option>)}
       </select>
       <div style={{ font: '400 12px Archivo', color: 'rgba(244,241,234,.4)' }}>Formato automatico: {format}</div>
-      <button onClick={save} style={btn(true)}>Guardar jogo</button>
+      <button onClick={save} style={btn(true)}>{game ? 'Guardar alteracoes' : 'Guardar jogo'}</button>
+      {game && <button onClick={remove} style={{ ...btn(false), color: '#ff7b74' }}>Apagar jogo</button>}
     </div>
   );
 }
