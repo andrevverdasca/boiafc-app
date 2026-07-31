@@ -244,7 +244,7 @@ export default function Page() {
           {sheet.kind === 'editGame' && <NewGame game={games.find(g => g.id === sheet.id)} onDone={() => { setSheet(null); loadAll(); }} />}
           {sheet.kind === 'newPlayer' && <NewPlayer games={games} onDone={() => { setSheet(null); loadAll(); }} />}
           {sheet.kind === 'game' && <GameSheet game={games.find(g => g.id === sheet.id)} players={players} events={events} isAdmin={isAdmin} onAdd={addEvent} onRemove={removeEvent} onSaveScore={loadAll} />}
-          {sheet.kind === 'player' && <PlayerSheet player={players.find(p => p.id === sheet.id)} stats={statsOf(sheet.id)} games={games} guests={guests} isAdmin={isAdmin} onChanged={loadAll} onMessage={(t,b,ids) => sendNotice(t,b,ids)} />}
+          {sheet.kind === 'player' && <PlayerSheet player={players.find(p => p.id === sheet.id)} stats={statsOf(sheet.id)} games={games} guests={guests} isAdmin={isAdmin} me={me} onChanged={loadAll} onMessage={(t,b,ids) => sendNotice(t,b,ids)} />}
         </Sheet>
       )}
     </div>
@@ -457,9 +457,10 @@ function GameSheet({ game, players, events, isAdmin, onAdd, onRemove, onSaveScor
   );
 }
 
-function PlayerSheet({ player, stats, games, guests, isAdmin, onChanged, onMessage }) {
+function PlayerSheet({ player, stats, games, guests, isAdmin, me, onChanged, onMessage }) {
   const [msg, setMsg] = useState('');
   const myGames = guests.filter(g => g.player_id === player.id).map(g => g.game_id);
+  const canEditPhoto = isAdmin || (me && me.id === player.id);
   async function upload(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -488,7 +489,7 @@ function PlayerSheet({ player, stats, games, guests, isAdmin, onChanged, onMessa
         <div style={{ ...card, flex: 1, textAlign: 'center' }}><div style={{ font: '400 22px Anton', color: GOLD }}>{stats.assists}</div><div style={label}>Assist.</div></div>
         <div style={{ ...card, flex: 1, textAlign: 'center' }}><div style={{ font: '400 22px Anton' }}>{stats.played}</div><div style={label}>Jogos</div></div>
       </div>
-      {isAdmin && (
+      {canEditPhoto && (
         <label style={{ ...btn(false), textAlign: 'center', display: 'block' }}>
           {player.photo_url ? 'Trocar foto' : 'Por foto'}
           <input type="file" accept="image/*" onChange={upload} style={{ display: 'none' }} />
