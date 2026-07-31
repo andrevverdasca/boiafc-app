@@ -50,6 +50,7 @@ export default function Page() {
   const [rosterFilter, setRosterFilter] = useState('todos');
 
   useEffect(() => {
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setSession(data.session);
       else supabase.auth.signInAnonymously().then(({ data: d2 }) => setSession(d2.session));
