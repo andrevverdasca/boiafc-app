@@ -221,34 +221,14 @@ function Avatar({ player, size = 32 }) {
 }
 
 function Claim({ players, onDone }) {
-  const [picked, setPicked] = useState(null);
-  const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const sorted = players.slice().sort((a, b) => a.name.localeCompare(b.name));
 
-  async function submit() {
+  async function pick(p) {
     setError('');
-    if (pin.length < 4) { setError('O PIN tem de ter pelo menos 4 numeros.'); return; }
-    const { error } = await supabase.rpc('claim_player', { p_player_id: picked.id, p_pin: pin });
-    if (error) { setError(error.message === 'pin invalido' ? 'PIN errado.' : error.message); return; }
+    const { error } = await supabase.rpc('claim_player', { p_player_id: p.id });
+    if (error) { setError(error.message); return; }
     onDone();
-  }
-
-  if (picked) {
-    return (
-      <div style={{ maxWidth: 380, margin: '0 auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ font: '400 34px/1 Anton', textTransform: 'uppercase' }}>Boia FC</div>
-        <div style={{ font: '400 13px/1.5 Archivo', color: 'rgba(244,241,234,.5)' }}>
-          {picked.pin_hash ? `Introduz o PIN de ${picked.name}.` : `Define um PIN para ${picked.name} (fica associado a ti para sempre).`}
-        </div>
-        <input style={input} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} inputMode="numeric" maxLength={6} placeholder="PIN" />
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => { setPicked(null); setPin(''); setError(''); }} style={btn(false)}>Voltar</button>
-          <button onClick={submit} style={btn(true)}>{picked.pin_hash ? 'Entrar' : 'Criar PIN'}</button>
-        </div>
-        {error && <div style={{ font: '600 12px Archivo', color: '#ff7b74' }}>{error}</div>}
-      </div>
-    );
   }
 
   return (
@@ -257,9 +237,10 @@ function Claim({ players, onDone }) {
       <div style={{ ...label, marginBottom: 12 }}>Quem es tu?</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {sorted.map(p => (
-          <button key={p.id} onClick={() => setPicked(p)} style={{ ...btn(false), textAlign: 'left' }}>{p.name} · {p.handle}</button>
+          <button key={p.id} onClick={() => pick(p)} style={{ ...btn(false), textAlign: 'left' }}>{p.name} · {p.handle}</button>
         ))}
       </div>
+      {error && <div style={{ font: '600 12px Archivo', color: '#ff7b74', marginTop: 10 }}>{error}</div>}
     </div>
   );
 }
