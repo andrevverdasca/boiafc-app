@@ -47,6 +47,7 @@ export default function Page() {
   const [tab, setTab] = useState('inicio');
   const [sheet, setSheet] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [rosterFilter, setRosterFilter] = useState('todos');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -150,8 +151,14 @@ export default function Page() {
             </div>
           </div>
           <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={label}>Convocatoria</div>
-            {rosterFor(next.id).map(p => {
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={label}>Convocatoria</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => setRosterFilter('todos')} style={{ ...btn(rosterFilter === 'todos'), padding: '6px 10px' }}>Todos</button>
+                <button onClick={() => setRosterFilter('vou')} style={{ ...btn(rosterFilter === 'vou'), padding: '6px 10px' }}>So confirmados</button>
+              </div>
+            </div>
+            {rosterFor(next.id).filter(p => rosterFilter === 'todos' || statusOf(next.id, p.id) === 'vou').map(p => {
               const s = STATUS[statusOf(next.id, p.id)];
               return (
                 <div key={p.id} onClick={() => setSheet({ kind: 'player', id: p.id })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', cursor: 'pointer' }}>
