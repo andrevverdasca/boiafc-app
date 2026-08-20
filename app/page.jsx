@@ -107,9 +107,16 @@ export default function Page() {
     const row = attendance.find(a => a.game_id === gameId && a.player_id === playerId);
     return row ? row.status : 'sem';
   }
+  async function setPlayerStatus(gameId, playerId, status) {
+    await supabase.from('attendance').upsert({ game_id: gameId, player_id: playerId, status, updated_at: new Date().toISOString() }, { onConflict: 'game_id,player_id' });
+  }
   async function setStatus(gameId, status) {
     if (!me) return;
-    await supabase.from('attendance').upsert({ game_id: gameId, player_id: me.id, status, updated_at: new Date().toISOString() }, { onConflict: 'game_id,player_id' });
+    await setPlayerStatus(gameId, me.id, status);
+    loadAll();
+  }
+  async function toggleWent(gameId, playerId) {
+    await setPlayerStatus(gameId, playerId, statusOf(gameId, playerId) === 'vou' ? 'nao' : 'vou');
     loadAll();
   }
   function statsOf(playerId) {
@@ -122,6 +129,8 @@ export default function Page() {
   }
   async function addEvent(gameId, playerId, kind) {
     await supabase.from('events').insert({ game_id: gameId, player_id: playerId, kind });
+    // quem marca golo ou faz assistencia esteve la, mesmo que nao tenha respondido
+    if (statusOf(gameId, playerId) !== 'vou') await setPlayerStatus(gameId, playerId, 'vou');
     loadAll();
   }
   async function removeEvent(gameId, playerId, kind) {
@@ -243,7 +252,7 @@ export default function Page() {
           {sheet.kind === 'newGame' && <NewGame onDone={() => { setSheet(null); loadAll(); }} />}
           {sheet.kind === 'editGame' && <NewGame game={games.find(g => g.id === sheet.id)} onDone={() => { setSheet(null); loadAll(); }} />}
           {sheet.kind === 'newPlayer' && <NewPlayer games={games} onDone={() => { setSheet(null); loadAll(); }} />}
-          {sheet.kind === 'game' && <GameSheet game={games.find(g => g.id === sheet.id)} players={players} events={events} isAdmin={isAdmin} onAdd={addEvent} onRemove={removeEvent} onSaveScore={loadAll} />}
+          {sheet.kind === 'game' && <GameSheet game={games.find(g => g.id === sheet.id)} players={players} events={events} isAdmin={isAdmin} statusOf={statusOf} onToggleWent={toggleWent} onAdd={addEvent} onRemove={removeEvent} onSaveScore={loadAll} />}
           {sheet.kind === 'player' && <PlayerSheet player={players.find(p => p.id === sheet.id)} stats={statsOf(sheet.id)} games={games} guests={guests} isAdmin={isAdmin} me={me} onChanged={loadAll} onMessage={(t,b,ids) => sendNotice(t,b,ids)} />}
         </Sheet>
       )}
@@ -413,7 +422,7 @@ function NewPlayer({ games, onDone }) {
   );
 }
 
-function GameSheet({ game, players, events, isAdmin, onAdd, onRemove, onSaveScore }) {
+function GameSheet({ game, players, events, isAdmin, statusOf, onToggleWent, onAdd, onRemove, onSaveScore }) {
   const [gf, setGf] = useState(game.goals_for ?? '');
   const [ga, setGa] = useState(game.goals_against ?? '');
   const countOf = (pid, kind) => events.filter(e => e.game_id === game.id && e.player_id === pid && e.kind === kind).length;
@@ -435,24 +444,33 @@ function GameSheet({ game, players, events, isAdmin, onAdd, onRemove, onSaveScor
           <button onClick={saveScore} style={btn(true)}>Guardar resultado</button>
         </div>
       )}
-      {players.filter(p => !p.is_guest || true).map(p => (
-        <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Avatar player={p} size={28} />
-          <div style={{ flex: 1, font: '600 12px Archivo' }}>{p.name}</div>
-          {isAdmin ? (
-            <>
-              <button onClick={() => onRemove(game.id, p.id, 'golo')} style={{ ...btn(false), padding: '6px 10px' }}>-</button>
-              <div style={{ width: 26, textAlign: 'center', font: '400 18px Anton', color: RED }}>{countOf(p.id, 'golo')}</div>
-              <button onClick={() => onAdd(game.id, p.id, 'golo')} style={{ ...btn(true), padding: '6px 10px' }}>+G</button>
-              <button onClick={() => onRemove(game.id, p.id, 'assist')} style={{ ...btn(false), padding: '6px 10px' }}>-</button>
-              <div style={{ width: 26, textAlign: 'center', font: '400 18px Anton', color: GOLD }}>{countOf(p.id, 'assist')}</div>
-              <button onClick={() => onAdd(game.id, p.id, 'assist')} style={{ ...btn(true), padding: '6px 10px', background: GOLD, color: '#20160a' }}>+A</button>
-            </>
-          ) : (
-            <div style={{ font: '600 12px Archivo', color: 'rgba(244,241,234,.5)' }}>{countOf(p.id, 'golo')}G · {countOf(p.id, 'assist')}A</div>
-          )}
-        </div>
-      ))}
+      {isAdmin && <div style={{ font: '400 11px Archivo', color: 'rgba(244,241,234,.4)' }}>O ✓ marca quem foi ao jogo. Quem leva golo ou assistencia fica marcado automaticamente.</div>}
+      {players.filter(p => !p.is_guest || true).map(p => {
+        const went = statusOf(game.id, p.id) === 'vou';
+        return (
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Avatar player={p} size={28} />
+            <div style={{ flex: 1, minWidth: 0, font: '600 12px Archivo', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+            {isAdmin ? (
+              <>
+                <button onClick={() => onToggleWent(game.id, p.id)} title="Foi ao jogo"
+                  style={{ ...btn(went), padding: '6px 9px', background: went ? GREEN : '#0d1119', color: went ? '#0d1119' : 'rgba(244,241,234,.45)' }}>✓</button>
+                <button onClick={() => onRemove(game.id, p.id, 'golo')} style={{ ...btn(false), padding: '6px 8px' }}>-</button>
+                <div style={{ width: 22, textAlign: 'center', font: '400 18px Anton', color: RED }}>{countOf(p.id, 'golo')}</div>
+                <button onClick={() => onAdd(game.id, p.id, 'golo')} style={{ ...btn(true), padding: '6px 8px' }}>+G</button>
+                <button onClick={() => onRemove(game.id, p.id, 'assist')} style={{ ...btn(false), padding: '6px 8px' }}>-</button>
+                <div style={{ width: 22, textAlign: 'center', font: '400 18px Anton', color: GOLD }}>{countOf(p.id, 'assist')}</div>
+                <button onClick={() => onAdd(game.id, p.id, 'assist')} style={{ ...btn(true), padding: '6px 8px', background: GOLD, color: '#20160a' }}>+A</button>
+              </>
+            ) : (
+              <div style={{ font: '600 12px Archivo', color: 'rgba(244,241,234,.5)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                {went && <span style={{ color: GREEN }}>✓</span>}
+                {countOf(p.id, 'golo')}G · {countOf(p.id, 'assist')}A
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
